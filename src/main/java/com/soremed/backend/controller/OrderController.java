@@ -4,10 +4,12 @@ import com.soremed.backend.dto.OrderDTO;
 import com.soremed.backend.dto.OrderItemDTO;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.OrderItem;
+import com.soremed.backend.entity.Medication;
 import com.soremed.backend.service.OrderService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -39,11 +41,28 @@ public class OrderController {
 
     // 3. Créer une nouvelle commande
     @PostMapping
-    public OrderDTO createOrder(@RequestParam Long userId, @RequestBody List<OrderItemDTO> items) {
+    public OrderDTO createOrder(@RequestParam Long userId, @RequestBody List<Map<String, Object>> items) {
         List<OrderItem> orderItems = items.stream()
-            .map(dto -> {
+            .map(itemMap -> {
                 OrderItem item = new OrderItem();
-                item.setQuantity(dto.getQuantity());
+                item.setQuantity((Integer) itemMap.get("quantity"));
+                
+                // Gérer les deux formats possibles
+                Long medicationId = null;
+                if (itemMap.containsKey("medicationId")) {
+                    medicationId = ((Number) itemMap.get("medicationId")).longValue();
+                } else if (itemMap.containsKey("medication")) {
+                    Map<String, Object> medication = (Map<String, Object>) itemMap.get("medication");
+                    medicationId = ((Number) medication.get("id")).longValue();
+                }
+                
+                // Créer un médicament temporaire avec l'ID
+                if (medicationId != null) {
+                    Medication med = new Medication();
+                    med.setId(medicationId);
+                    item.setMedication(med);
+                }
+                
                 return item;
             })
             .collect(Collectors.toList());

@@ -40,16 +40,35 @@ public class OrderService {
     @Transactional
     public Order createOrder(Long userId, List<OrderItem> items) {
         Order order = new Order();
+        
+        // Vérifier si l'utilisateur existe
+        if (!userRepo.existsById(userId)) {
+            throw new IllegalArgumentException("User with ID " + userId + " not found");
+        }
+        
         // Associer le user à la commande
         userRepo.findById(userId).ifPresent(order::setUser);
+        
         // Ajouter chaque item à la commande
         for (OrderItem item : items) {
+            if (item.getMedication() == null || item.getMedication().getId() == null) {
+                throw new IllegalArgumentException("Medication ID is required for each order item");
+            }
+            
             // Récupérer le médicament depuis son ID
-            Medication med = medicationRepo.findById(item.getMedication().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid medication ID"));
-            item.setMedication(med);
-            order.addItem(item);
+            Long medicationId = item.getMedication().getId();
+            Medication med = medicationRepo.findById(medicationId)
+                    .orElseThrow(() -> new IllegalArgumentException("Medication with ID " + medicationId + " not found"));
+            
+            // Créer un nouvel OrderItem avec les bonnes références
+            OrderItem newItem = new OrderItem();
+            newItem.setQuantity(item.getQuantity());
+            newItem.setMedication(med);
+            newItem.setOrder(order);
+            
+            order.addItem(newItem);
         }
+        
         // Sauvegarder la commande (cascade = ALL => items seront sauvegardés aussi)
         return orderRepo.save(order);
     }
