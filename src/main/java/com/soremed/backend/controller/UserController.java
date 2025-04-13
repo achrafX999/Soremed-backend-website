@@ -31,12 +31,12 @@ public class UserController {
     }
 
     // 2. Récupérer la liste des utilisateurs (optionnel, admin only)
-    /*@GetMapping("/users")
+    @GetMapping("/users")
     public List<User> getAllUsers() {
         // utile seulement si on prévoit une gestion des utilisateurs côté admin
         // ici on appelle directement le repository via service si besoin
         return userService.getAllUsers();
-    }*/
+    }
 
     // 3. Statistiques : nombre de commandes par mois (dernière année par ex) et distribution des statuts
     @GetMapping("/stats")
@@ -66,5 +66,14 @@ public class UserController {
 
         return stats;
     }
+
+    @PostMapping("/users/register")
+    public User register(@RequestBody User newUser) {
+        // On peut ajouter ici une logique de validation.
+        // Pour l'instant, on peut directement sauvegarder l'utilisateur via le service.
+        // Assure-toi que UserRepository et UserService gèrent la création d'un nouvel utilisateur.
+        return userService.save(newUser);  // Tu devras implémenter la méthode save dans UserService et dans ton repository.
+    }
+
 }
 
