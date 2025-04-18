@@ -40,4 +40,9 @@ public class MedicationService {
     public void deleteMedication(Long id) {
         medicationRepo.deleteById(id);
     }
+
+    public List<Medication> getNewMedications() {
+        // Utilise la méthode du repository pour récupérer les 10 derniers enregistrement
+        return medicationRepo.findTop10ByOrderByIdDesc();
+    }
 }

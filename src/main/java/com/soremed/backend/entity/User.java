@@ -1,5 +1,6 @@
 package com.soremed.backend.entity;
 
+import com.soremed.backend.enums.Role;
 import jakarta.persistence.*;
 
 @Entity
@@ -13,13 +14,16 @@ public class User {
 
     private String password;
 
-    // Stocke le rôle de l’utilisateur: "ADMIN", "SERVICE_ACHAT" ou "CLIENT"
-    private String role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     // (Optionnel) d’autres champs comme email, nom, etc., peuvent être ajoutés
 
     public User() {}
-    public User(String username, String password, String role) {
+
+    public User(Long id, String username, String password, Role role) {
+        this.id = id;
         this.username = username;
         this.password = password;
         this.role = role;
@@ -49,11 +53,11 @@ public class User {
         this.password = password;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 }

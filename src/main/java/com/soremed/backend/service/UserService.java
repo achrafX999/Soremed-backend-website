@@ -20,9 +20,9 @@ public class UserService {
         this.passwordEncoder= passwordEncoder;
     }
 
-    public Optional<User> authenticate(String username, String password) {
-        // Recherche l'utilisateur correspondant aux identifiants
-        return userRepo.findByUsernameAndPassword(username, password);
+    public Optional<User> authenticate(String username, String rawPassword) {
+        return userRepo.findByUsername(username)
+                .filter(u -> passwordEncoder.matches(rawPassword, u.getPassword()));
     }
 
     public Optional<User> getUserByUsername(String username) {

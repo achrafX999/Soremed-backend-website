@@ -29,7 +29,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         // Retourne un UserDetails construit à partir de l'entité utilisateur
         return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
                 .password(user.getPassword())
-                .roles(user.getRole()) // Assure-toi que ton rôle est au format attendu (par exemple, "ADMIN" ou "USER")
+                .roles(user.getRole().name())  // ← String, ex. "ADMIN", "CLIENT" ou "SERVICE_ACHAT"
                 .build();
     }
 }

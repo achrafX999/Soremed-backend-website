@@ -1,10 +1,15 @@
 package com.soremed.backend.controller;
 
 
+import com.soremed.backend.dto.ErrorDTO;
+import com.soremed.backend.dto.LoginDTO;
+import com.soremed.backend.dto.UserDTO;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.User;
 import com.soremed.backend.service.OrderService;
 import com.soremed.backend.service.UserService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -20,15 +25,32 @@ public class UserController {
         this.orderService = orderService;
     }
 
-    // 1. Authentification simplifiée (Login)
     @PostMapping("/login")
-    public User login(@RequestBody Map<String, String> credentials) {
-        String username = credentials.get("username");
-        String password = credentials.get("password");
-        return userService.authenticate(username, password)
-                .orElse(null);
-        // Retourne l'utilisateur si trouvé, sinon null (-> code 200 avec body null, ou on pourrait renvoyer 401)
+    public ResponseEntity<?> login(@RequestBody LoginDTO creds) {
+        Optional<User> opt = userService.authenticate(creds.getUsername(), creds.getPassword());
+        if (opt.isPresent()) {
+            User user = opt.get();
+            UserDTO dto = new UserDTO();
+            dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
+            dto.setRole(user.getRole().name());
+            return ResponseEntity
+                    .ok()      // 200 OK
+                    .body(dto); // UserDTO dans le corps
+        } else {
+            ErrorDTO err = new ErrorDTO("Nom d'utilisateur ou mot de passe incorrect");
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED) // 401
+                    .body(err);                      // ErrorDTO dans le corps
+        }
     }
+
+
+
+
+
+
+
 
     // 2. Récupérer la liste des utilisateurs (optionnel, admin only)
     @GetMapping("/users")

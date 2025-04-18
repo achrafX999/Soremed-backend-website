@@ -26,6 +26,12 @@ public class MedicationController {
         return medicationService.getMedication(id);
     }
 
+    @GetMapping("/new")
+    public List<Medication> getNewMedications() {
+        // Retourner les médicaments triés par date décroissante, avec une limitation (ex. 10 derniers)
+        return medicationService.getNewMedications();
+    }
+
     // 3. Ajouter un nouveau médicament (ADMIN)
     @PostMapping
     public Medication createMedication(@RequestBody Medication med) {
