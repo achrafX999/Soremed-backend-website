@@ -1,6 +1,8 @@
 package com.soremed.backend.repository;
 
 import com.soremed.backend.entity.Medication;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
@@ -9,4 +11,11 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
     List<Medication> findByNameContaining(String keyword);
     // Récupère les 10 derniers médicaments ajoutés, triés par id en ordre décroissant.
     List<Medication> findTop10ByOrderByIdDesc();
+
+    // Recherche insensible à la casse + quantité min, avec pagination
+    Page<Medication> findByNameContainingIgnoreCaseAndQuantityGreaterThanEqual(
+            String name,
+            int minQuantity,
+            Pageable pageable
+    );
 }

@@ -71,6 +71,20 @@ public class OrderController {
         return convertToDTO(order);
     }
 
+    @PostMapping("/{orderId}/items")
+    public OrderDTO addItem(
+            @PathVariable Long orderId,
+            @RequestBody OrderItemDTO itemDto
+    ) {
+        // Appelle ton service qui gère la fusion ou l’insertion
+        Order order = orderService.addOrUpdateItem(
+                orderId,
+                itemDto.getMedicationId(),
+                itemDto.getQuantity()
+        );
+        return convertToDTO(order);
+    }
+
     // 4. Mettre à jour le statut d'une commande (ADMIN/SERVICE_ACHAT)
     @PutMapping("/{id}/status")
     public OrderDTO updateOrderStatus(@PathVariable Long id, @RequestParam String status) {

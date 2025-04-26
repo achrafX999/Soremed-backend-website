@@ -10,6 +10,7 @@ import com.soremed.backend.service.OrderService;
 import com.soremed.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -45,7 +46,19 @@ public class UserController {
         }
     }
 
-
+    // ce endpoint renvoie l utilisateur courant apres l'authentification (evite l utilisateur de se reconnecter a chaque fois)
+    @GetMapping("/users/me")
+    public ResponseEntity<UserDTO> whoami(Authentication auth) {
+        return userService.getUserByUsername(auth.getName())
+                .map(u -> {
+                    UserDTO dto = new UserDTO();
+                    dto.setId(u.getId());
+                    dto.setUsername(u.getUsername());
+                    dto.setRole(u.getRole().name());
+                    return ResponseEntity.ok(dto);
+                })
+                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+    }
 
 
 

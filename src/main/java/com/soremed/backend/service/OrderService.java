@@ -4,81 +4,102 @@ import com.soremed.backend.entity.Medication;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.OrderItem;
 import com.soremed.backend.repository.MedicationRepository;
+import com.soremed.backend.repository.OrderItemRepository;
 import com.soremed.backend.repository.OrderRepository;
 import com.soremed.backend.repository.UserRepository;
-import org.springframework.stereotype.Service;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class OrderService {
     private final OrderRepository orderRepo;
     private final MedicationRepository medicationRepo;
     private final UserRepository userRepo;
+    private final OrderItemRepository itemRepo;
 
-    public OrderService(OrderRepository orderRepo, MedicationRepository medRepo, UserRepository userRepo) {
+    public OrderService(OrderRepository orderRepo,
+                        MedicationRepository medicationRepo,
+                        UserRepository userRepo,
+                        OrderItemRepository itemRepo) {
         this.orderRepo = orderRepo;
-        this.medicationRepo = medRepo;
+        this.medicationRepo = medicationRepo;
         this.userRepo = userRepo;
+        this.itemRepo = itemRepo;
     }
 
     public List<Order> listAllOrders() {
         return orderRepo.findAll();
     }
+
     public List<Order> listOrdersByUser(Long userId) {
         return orderRepo.findByUserId(userId);
     }
+
     public Order getOrder(Long id) {
         return orderRepo.findById(id).orElse(null);
     }
 
     /**
      * Crée une nouvelle commande pour un utilisateur donné, avec des items.
-     * @param userId l'ID du user qui passe commande
-     * @param items liste d'objets (medicationId, quantity) pour la commande
      */
     @Transactional
     public Order createOrder(Long userId, List<OrderItem> items) {
         Order order = new Order();
-        
-        // Vérifier si l'utilisateur existe
         if (!userRepo.existsById(userId)) {
             throw new IllegalArgumentException("User with ID " + userId + " not found");
         }
-        
-        // Associer le user à la commande
         userRepo.findById(userId).ifPresent(order::setUser);
-        
-        // Ajouter chaque item à la commande
+
         for (OrderItem item : items) {
-            if (item.getMedication() == null || item.getMedication().getId() == null) {
-                throw new IllegalArgumentException("Medication ID is required for each order item");
-            }
-            
-            // Récupérer le médicament depuis son ID
-            Long medicationId = item.getMedication().getId();
-            Medication med = medicationRepo.findById(medicationId)
-                    .orElseThrow(() -> new IllegalArgumentException("Medication with ID " + medicationId + " not found"));
-            
-            // Créer un nouvel OrderItem avec les bonnes références
-            OrderItem newItem = new OrderItem();
-            newItem.setQuantity(item.getQuantity());
-            newItem.setMedication(med);
-            newItem.setOrder(order);
-            
+            Long medId = Optional.ofNullable(item.getMedication())
+                    .map(Medication::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("Medication ID is required"));
+            Medication med = medicationRepo.findById(medId)
+                    .orElseThrow(() -> new IllegalArgumentException("Medication with ID " + medId + " not found"));
+            OrderItem newItem = new OrderItem(order, med, item.getQuantity());
             order.addItem(newItem);
         }
-        
-        // Sauvegarder la commande (cascade = ALL => items seront sauvegardés aussi)
+
         return orderRepo.save(order);
     }
 
-    public Order updateOrderStatus(Long orderId, String newStatus) {
-        Order order = orderRepo.findById(orderId).orElse(null);
-        if (order != null) {
-            order.setStatus(newStatus);
-            orderRepo.save(order);
+    /**
+     * Ajoute ou met à jour un seul OrderItem dans une commande existante.
+     * Si l’item n’existe pas => INSERT, sinon => quantity += qty
+     */
+    @Transactional
+    public Order addOrUpdateItem(Long orderId, Long medicationId, int qty) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+        Medication med = medicationRepo.findById(medicationId)
+                .orElseThrow(() -> new EntityNotFoundException("Medication not found: " + medicationId));
+
+        try {
+            OrderItem item = new OrderItem(order, med, qty);
+            itemRepo.save(item);
+        } catch (DataIntegrityViolationException ex) {
+            OrderItem existing = itemRepo.findByOrderAndMedication(order, med)
+                    .orElseThrow(() -> new EntityNotFoundException("Existing OrderItem not found"));
+            existing.setQuantity(existing.getQuantity() + qty);
+            itemRepo.save(existing);
         }
-        return order;
+
+        return orderRepo.findById(orderId).orElseThrow();
+    }
+
+    /**
+     * Met à jour le statut d'une commande.
+     */
+    @Transactional
+    public Order updateOrderStatus(Long orderId, String newStatus) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+        order.setStatus(newStatus);
+        return orderRepo.save(order);
     }
 }
