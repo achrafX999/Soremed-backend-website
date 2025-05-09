@@ -6,14 +6,17 @@ import com.soremed.backend.dto.LoginDTO;
 import com.soremed.backend.dto.UserDTO;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.User;
+import com.soremed.backend.enums.Role;
 import com.soremed.backend.service.OrderService;
 import com.soremed.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -73,6 +76,8 @@ public class UserController {
         return userService.getAllUsers();
     }
 
+
+
     // 3. Statistiques : nombre de commandes par mois (dernière année par ex) et distribution des statuts
     @GetMapping("/stats")
     public Map<String, Object> getStats() {
@@ -100,6 +105,41 @@ public class UserController {
         stats.put("statusDistribution", statusCount);
 
         return stats;
+    }
+
+    /**
+     * 3.1. Liste de tous les utilisateurs — accessible aux ADMIN seulement.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/users")
+    public List<UserDTO> listAllUsersAdmin() {
+        return userService.getAllUsers().stream()
+                .map(u -> {
+                    UserDTO dto = new UserDTO();
+                    dto.setId(u.getId());
+                    dto.setUsername(u.getUsername());
+                    dto.setRole(u.getRole().name());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 3.2. Changer le rôle d’un utilisateur — ADMIN only.
+     *    ex. PUT /api/admin/users/42/role?newRole=SERVICE_ACHAT
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/admin/users/{id}/role")
+    public UserDTO updateUserRole(
+            @PathVariable Long id,
+            @RequestParam("newRole") Role newRole
+    ) {
+        User updated = userService.changeRole(id, newRole);
+        UserDTO dto = new UserDTO();
+        dto.setId(updated.getId());
+        dto.setUsername(updated.getUsername());
+        dto.setRole(updated.getRole().name());
+        return dto;
     }
 
     @PostMapping("/users/register")

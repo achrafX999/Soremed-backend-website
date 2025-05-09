@@ -28,6 +28,13 @@ public class SecurityConfig {
                         .hasAnyRole("ADMIN", "SERVICE_ACHAT", "CLIENT")
                         .anyRequest().authenticated()
                 )
+                // Form‐based login pointé sur votre endpoint custom
+                .formLogin(form -> form
+                        .loginProcessingUrl("/api/login")            // POST /api/login
+                        .successHandler((req,res,auth) -> res.setStatus(HttpStatus.OK.value()))
+                        .failureHandler((req,res,exc) -> res.sendError(HttpStatus.UNAUTHORIZED.value()))
+                        .permitAll()
+                )
                 .httpBasic(Customizer.withDefaults())
                 .logout(logout -> logout
                         .logoutUrl("/api/logout")

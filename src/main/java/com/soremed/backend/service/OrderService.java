@@ -1,19 +1,25 @@
 package com.soremed.backend.service;
 
+import com.soremed.backend.dto.OrderDTO;
+import com.soremed.backend.dto.OrderItemDTO;
 import com.soremed.backend.entity.Medication;
 import com.soremed.backend.entity.Order;
+import com.soremed.backend.entity.User;
 import com.soremed.backend.entity.OrderItem;
 import com.soremed.backend.repository.MedicationRepository;
 import com.soremed.backend.repository.OrderItemRepository;
 import com.soremed.backend.repository.OrderRepository;
 import com.soremed.backend.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
@@ -102,4 +108,91 @@ public class OrderService {
         order.setStatus(newStatus);
         return orderRepo.save(order);
     }
+
+    /**
+     * Liste toutes les commandes sous forme de DTO pour l’admin.
+     */
+    @Transactional(readOnly = true)
+    public List<OrderDTO> listAllOrdersForAdmin() {
+        return orderRepo.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Met à jour le statut d’une commande et renvoie le DTO.
+     */
+    @Transactional
+    public OrderDTO updateOrderStatusDto(Long orderId, String newStatus) {
+        Order updated = updateOrderStatus(orderId, newStatus);  // existant
+        return toDTO(updated);                                  // conversion en DTO
+    }
+
+    /**
+     * Exporte toutes les commandes au format CSV.
+     */
+    public byte[] exportOrdersCsv() {
+        List<OrderDTO> orders = listAllOrdersForAdmin();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PrintWriter writer = new PrintWriter(baos);
+
+        // En-tête CSV
+        writer.println("ID,Date,Status,UserID,Total");
+
+        for (OrderDTO dto : orders) {
+            String line = String.format(
+                    "%d,%s,%s,%d,%.2f",
+                    dto.getId(),
+                    dto.getOrderDate(),
+                    dto.getStatus(),
+                    dto.getUserId(),
+                    dto.getTotal()
+            );
+            writer.println(line);
+        }
+
+        writer.flush();
+        return baos.toByteArray();
+    }
+
+    /**
+     * Convertit une entité Order en OrderDTO.
+     */
+    private OrderDTO toDTO(Order order) {
+        // 1) Vérifie qu’il y a bien un user, sinon lève une exception explicite
+        Long userId = Optional.ofNullable(order.getUser())
+                .map(User::getId)
+                .orElseThrow(() ->
+                        new IllegalStateException("Order #" + order.getId() + " sans user")
+                );
+        String username = order.getUser().getUsername();
+
+        // 2) Mapping des items
+        List<OrderItemDTO> items = order.getItems().stream()
+                .map(item -> new OrderItemDTO(
+                        item.getId(),
+                        item.getMedication().getId(),
+                        item.getMedication().getName(),
+                        item.getQuantity(),
+                        item.getMedication().getPrice()
+                ))
+                .collect(Collectors.toList());
+
+        // 3) Calcul du total
+        double total = items.stream()
+                .mapToDouble(i -> i.getQuantity() * i.getPrice())
+                .sum();
+
+        // 4) Construit un DTO enrichi avec userId et username
+        return new OrderDTO(
+                order.getId(),
+                order.getOrderDate(),
+                order.getStatus(),
+                userId,
+                username,
+                items,
+                total
+        );
+    }
+
 }

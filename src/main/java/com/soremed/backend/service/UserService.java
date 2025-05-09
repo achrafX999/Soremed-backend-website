@@ -2,7 +2,10 @@ package com.soremed.backend.service;
 
 
 import com.soremed.backend.entity.User;
+import com.soremed.backend.enums.Role;
 import com.soremed.backend.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +48,17 @@ public class UserService {
         return userRepo.save(user);
     }
 
-
+    /**
+     * Change le rôle d’un utilisateur existant.
+     * @throws EntityNotFoundException si l’utilisateur n’existe pas
+     */
+    @Transactional
+    public User changeRole(Long userId, Role newRole) {
+        User u = userRepo.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+        u.setRole(newRole);
+        return userRepo.save(u);
+    }
 
 }
 

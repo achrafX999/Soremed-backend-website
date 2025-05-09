@@ -8,16 +8,28 @@ public class OrderDTO {
     private Date orderDate;
     private String status;
     private Long userId;
+    private String username;           // ← ajouté
     private List<OrderItemDTO> items;
+    private Double total;
 
     public OrderDTO() {}
 
-    public OrderDTO(Long id, Date orderDate, String status, Long userId, List<OrderItemDTO> items) {
-        this.id = id;
-        this.orderDate = orderDate;
-        this.status = status;
-        this.userId = userId;
-        this.items = items;
+    public OrderDTO(
+            Long id,
+            Date orderDate,
+            String status,
+            Long userId,
+            String username,              // ← param ajouté
+            List<OrderItemDTO> items,
+            Double total
+    ) {
+        this.id         = id;
+        this.orderDate  = orderDate;
+        this.status     = status;
+        this.userId     = userId;
+        this.username   = username;   // ← initialisé
+        this.items      = items;
+        this.total      = total;
     }
 
 
@@ -61,4 +73,20 @@ public class OrderDTO {
     public void setItems(List<OrderItemDTO> items) {
         this.items = items;
     }
-} 
+
+    public Double getTotal() {
+        return total;
+    }
+
+    public void setTotal(Double total) {
+        this.total = total;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+}
