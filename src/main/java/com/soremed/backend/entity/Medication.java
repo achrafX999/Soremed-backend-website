@@ -1,8 +1,15 @@
 package com.soremed.backend.entity;
 
 import jakarta.persistence.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "medication")
 public class Medication {
     @Id
@@ -24,6 +31,27 @@ public class Medication {
     // Stock disponible
     @Column(nullable = false)
     private int quantity;
+
+    @CreatedDate
+    @Column(updatable = false, nullable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Transient
+    private Integer _previousQuantity;
+
+    @Transient
+    private Double _previousPrice;
+
+    @PostLoad
+    public void cachePreviousValues() {
+        // À chaque chargement depuis la BDD, on mémorise l’état courant
+        this._previousQuantity = this.quantity;
+        this._previousPrice    = this.price;
+    }
 
     // Constructors
     public Medication() {}
@@ -102,5 +130,37 @@ public class Medication {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Integer get_previousQuantity() {
+        return _previousQuantity;
+    }
+
+    public void set_previousQuantity(Integer _previousQuantity) {
+        this._previousQuantity = _previousQuantity;
+    }
+
+    public Double get_previousPrice() {
+        return _previousPrice;
+    }
+
+    public void set_previousPrice(Double _previousPrice) {
+        this._previousPrice = _previousPrice;
     }
 }

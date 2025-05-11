@@ -8,6 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +22,12 @@ public class MedicationService {
     public MedicationService(MedicationRepository medicationRepo) {
         this.medicationRepo = medicationRepo;
     }
+
+    public record MedStats(
+            long newProductsThisMonth,
+            long inventoryUpdatesThisMonth,
+            long priceChangesThisMonth
+    ) {}
 
     public List<Medication> listAllMedications(String search) {
         if (search != null && !search.isEmpty()) {
@@ -77,4 +87,31 @@ public class MedicationService {
         med.setQuantity(quantity);
         return medicationRepo.save(med);
     }
+
+    @Transactional(readOnly = true)
+    public MedStats computeStatsForCurrentMonth() {
+        LocalDateTime start = LocalDate.now()
+                .withDayOfMonth(1)
+                .atStartOfDay();
+        LocalDateTime end = LocalDateTime.now();
+
+        // 1️⃣ Comptage direct
+        long newProducts = medicationRepo.countByCreatedAtBetween(start, end);
+
+        // 2️⃣ Récupération des mis à jour
+        List<Medication> updated = medicationRepo.findAllByUpdatedAtBetween(start, end);
+
+        // 3️⃣ Filtrage en mémoire
+        long invUpdates = updated.stream()
+                .filter(m -> m.getQuantity() != m.get_previousQuantity())
+                .count();
+
+        long priceUpdates = updated.stream()
+                .filter(m -> m.getPrice() != m.get_previousPrice())
+                .count();
+
+        return new MedStats(newProducts, invUpdates, priceUpdates);
+    }
+
+
 }
