@@ -1,10 +1,7 @@
 package com.soremed.backend.controller;
 
 
-import com.soremed.backend.dto.AdminUserDTO;
-import com.soremed.backend.dto.ErrorDTO;
-import com.soremed.backend.dto.LoginDTO;
-import com.soremed.backend.dto.UserDTO;
+import com.soremed.backend.dto.*;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.User;
 import com.soremed.backend.enums.Role;
@@ -157,12 +154,29 @@ public class UserController {
         return dto;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("admin/users/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+
     @PostMapping("/users/register")
-    public User register(@RequestBody User newUser) {
-        // On peut ajouter ici une logique de validation.
-        // Pour l'instant, on peut directement sauvegarder l'utilisateur via le service.
-        // Assure-toi que UserRepository et UserService gèrent la création d'un nouvel utilisateur.
-        return userService.save(newUser);  // Tu devras implémenter la méthode save dans UserService et dans ton repository.
+    public ResponseEntity<UserDTO> register(@RequestBody RegistrationDTO dto) {
+        User u = new User();
+        u.setUsername(dto.getUsername());
+        u.setPassword(dto.getPassword());
+        u.setRole(Role.CLIENT);
+        u.setIceNumber(dto.getIceNumber());
+        u.setAddress(dto.getAddress());
+        u.setPhone(dto.getPhone());
+        User saved = userService.save(u);
+        UserDTO out = new UserDTO();
+        out.setId(saved.getId());
+        out.setUsername(saved.getUsername());
+        out.setRole(saved.getRole().name());
+        return ResponseEntity.ok(out);
     }
 
 }

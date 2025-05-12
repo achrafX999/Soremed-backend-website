@@ -60,6 +60,13 @@ public class UserService {
         return userRepo.save(u);
     }
 
+    public void deleteUser(Long id) {
+        if (!userRepo.existsById(id)) {
+            throw new EntityNotFoundException("User not found: " + id);
+        }
+        userRepo.deleteById(id);
+    }
+
 }
 
 

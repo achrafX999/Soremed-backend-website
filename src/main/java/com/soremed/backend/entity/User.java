@@ -18,15 +18,22 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
-    // (Optionnel) d’autres champs comme email, nom, etc., peuvent être ajoutés
+    // champs profil pharmacie
+    private String iceNumber;
+    private String address;
+    private String phone;
+
 
     public User() {}
 
-    public User(Long id, String username, String password, Role role) {
+    public User(Long id, String username, String password, Role role, String iceNumber, String address, String phone) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.role = role;
+        this.iceNumber = iceNumber;
+        this.address = address;
+        this.phone = phone;
     }
 
     public Long getId() {
@@ -59,5 +66,29 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getIceNumber() {
+        return iceNumber;
+    }
+
+    public void setIceNumber(String iceNumber) {
+        this.iceNumber = iceNumber;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 }
