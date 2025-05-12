@@ -1,6 +1,7 @@
 package com.soremed.backend.controller;
 
 
+import com.soremed.backend.dto.AdminUserDTO;
 import com.soremed.backend.dto.ErrorDTO;
 import com.soremed.backend.dto.LoginDTO;
 import com.soremed.backend.dto.UserDTO;
@@ -124,6 +125,20 @@ public class UserController {
                 .collect(Collectors.toList());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/users")
+    public ResponseEntity<UserDTO> createAdminUser(@RequestBody AdminUserDTO dto) {
+        User u = new User();
+        u.setUsername(dto.getUsername());
+        u.setPassword(dto.getPassword());
+        u.setRole(Role.valueOf(dto.getRole()));
+        User saved = userService.save(u);
+        UserDTO out = new UserDTO();
+        out.setId(saved.getId());
+        out.setUsername(saved.getUsername());
+        out.setRole(saved.getRole().name());
+        return ResponseEntity.status(HttpStatus.CREATED).body(out);
+    }
     /**
      * 3.2. Changer le rôle d’un utilisateur — ADMIN only.
      *    ex. PUT /api/admin/users/42/role?newRole=SERVICE_ACHAT
