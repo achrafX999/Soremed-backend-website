@@ -6,10 +6,18 @@ import com.soremed.backend.entity.Medication;
 import com.soremed.backend.entity.Order;
 import com.soremed.backend.entity.User;
 import com.soremed.backend.entity.OrderItem;
+
+// Imports ajoutés pour la notification
+import com.soremed.backend.entity.NotificationLog;
+import com.soremed.backend.entity.NotificationSettings;
+import com.soremed.backend.repository.NotificationLogRepository;
+import com.soremed.backend.repository.NotificationSettingsRepository;
+
 import com.soremed.backend.repository.MedicationRepository;
 import com.soremed.backend.repository.OrderItemRepository;
 import com.soremed.backend.repository.OrderRepository;
 import com.soremed.backend.repository.UserRepository;
+
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,14 +37,22 @@ public class OrderService {
     private final UserRepository userRepo;
     private final OrderItemRepository itemRepo;
 
+    // Nouveaux champs pour la notification
+    private final NotificationSettingsRepository settingsRepo;
+    private final NotificationLogRepository      logRepo;
+
     public OrderService(OrderRepository orderRepo,
                         MedicationRepository medicationRepo,
                         UserRepository userRepo,
-                        OrderItemRepository itemRepo) {
-        this.orderRepo = orderRepo;
-        this.medicationRepo = medicationRepo;
-        this.userRepo = userRepo;
-        this.itemRepo = itemRepo;
+                        OrderItemRepository itemRepo,
+                        NotificationSettingsRepository settingsRepo,
+                        NotificationLogRepository logRepo) {
+        this.orderRepo       = orderRepo;
+        this.medicationRepo  = medicationRepo;
+        this.userRepo        = userRepo;
+        this.itemRepo        = itemRepo;
+        this.settingsRepo    = settingsRepo;
+        this.logRepo         = logRepo;
     }
 
     public List<Order> listAllOrders() {
@@ -51,7 +68,8 @@ public class OrderService {
     }
 
     /**
-     * Crée une nouvelle commande pour un utilisateur donné, avec des items.
+     * Crée une nouvelle commande pour un utilisateur donné, avec des items,
+     * et génère une notification "newOrder" si activé en base.
      */
     @Transactional
     public Order createOrder(Long userId, List<OrderItem> items) {
@@ -71,13 +89,25 @@ public class OrderService {
             order.addItem(newItem);
         }
 
-        return orderRepo.save(order);
+        // Sauvegarde de la commande
+        Order saved = orderRepo.save(order);
+
+        // Génération de la notification newOrder
+        NotificationSettings settings = settingsRepo.findById(1L)
+                .orElseThrow(() -> new IllegalStateException("NotificationSettings introuvable"));
+        if (settings.isNewOrder()) {
+            NotificationLog log = new NotificationLog();
+            log.setType("newOrder");
+            log.setMessage("Nouvelle commande #" + saved.getId() + " reçue");
+            log.setTimestamp(LocalDateTime.now());
+            log.setSeverity("medium");
+            log.setRead(false);
+            logRepo.save(log);
+        }
+
+        return saved;
     }
 
-    /**
-     * Ajoute ou met à jour un seul OrderItem dans une commande existante.
-     * Si l’item n’existe pas => INSERT, sinon => quantity += qty
-     */
     @Transactional
     public Order addOrUpdateItem(Long orderId, Long medicationId, int qty) {
         Order order = orderRepo.findById(orderId)
@@ -98,20 +128,34 @@ public class OrderService {
         return orderRepo.findById(orderId).orElseThrow();
     }
 
-    /**
-     * Met à jour le statut d'une commande.
-     */
     @Transactional
     public Order updateOrderStatus(Long orderId, String newStatus) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found: " + orderId));
+
+        String previousStatus = order.getStatus();
         order.setStatus(newStatus);
-        return orderRepo.save(order);
+        Order savedOrder = orderRepo.save(order);
+
+        // Si on vient de passer à COMPLETED, on décrémente les quantités
+        if ("COMPLETED".equalsIgnoreCase(newStatus) && !"COMPLETED".equalsIgnoreCase(previousStatus)) {
+            for (OrderItem item : savedOrder.getItems()) {
+                Medication med = medicationRepo.findById(item.getMedication().getId())
+                        .orElseThrow(() -> new EntityNotFoundException(
+                                "Medication not found for item " + item.getId()));
+                int newQty = med.getQuantity() - item.getQuantity();
+                if (newQty < 0) {
+                    throw new IllegalStateException(
+                            "Stock insuffisant pour le médicament " + med.getName());
+                }
+                med.setQuantity(newQty);
+                medicationRepo.save(med);
+            }
+        }
+
+        return savedOrder;
     }
 
-    /**
-     * Liste toutes les commandes sous forme de DTO pour l’admin.
-     */
     @Transactional(readOnly = true)
     public List<OrderDTO> listAllOrdersForAdmin() {
         return orderRepo.findAll().stream()
@@ -119,26 +163,19 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Met à jour le statut d’une commande et renvoie le DTO.
-     */
     @Transactional
     public OrderDTO updateOrderStatusDto(Long orderId, String newStatus) {
-        Order updated = updateOrderStatus(orderId, newStatus);  // existant
-        return toDTO(updated);                                  // conversion en DTO
+        Order updated = updateOrderStatus(orderId, newStatus);
+        return toDTO(updated);
     }
 
-    /**
-     * Exporte toutes les commandes au format CSV.
-     */
+
     public byte[] exportOrdersCsv() {
         List<OrderDTO> orders = listAllOrdersForAdmin();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(baos);
 
-        // En-tête CSV
         writer.println("ID,Date,Status,UserID,Total");
-
         for (OrderDTO dto : orders) {
             String line = String.format(
                     "%d,%s,%s,%d,%.2f",
@@ -155,11 +192,7 @@ public class OrderService {
         return baos.toByteArray();
     }
 
-    /**
-     * Convertit une entité Order en OrderDTO.
-     */
     private OrderDTO toDTO(Order order) {
-        // 1) Vérifie qu’il y a bien un user, sinon lève une exception explicite
         Long userId = Optional.ofNullable(order.getUser())
                 .map(User::getId)
                 .orElseThrow(() ->
@@ -167,7 +200,6 @@ public class OrderService {
                 );
         String username = order.getUser().getUsername();
 
-        // 2) Mapping des items
         List<OrderItemDTO> items = order.getItems().stream()
                 .map(item -> new OrderItemDTO(
                         item.getId(),
@@ -178,12 +210,10 @@ public class OrderService {
                 ))
                 .collect(Collectors.toList());
 
-        // 3) Calcul du total
         double total = items.stream()
                 .mapToDouble(i -> i.getQuantity() * i.getPrice())
                 .sum();
 
-        // 4) Construit un DTO enrichi avec userId et username
         return new OrderDTO(
                 order.getId(),
                 order.getOrderDate(),
@@ -194,5 +224,4 @@ public class OrderService {
                 total
         );
     }
-
 }

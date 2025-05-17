@@ -23,19 +23,29 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(auth -> auth
+                        // 1) Autorisation ouverte pour l'enregistrement et le login
                         .requestMatchers("/api/users/register", "/api/login").permitAll()
+
+                        // 2) Seul ADMIN peut accéder aux notifications admin
+                        .requestMatchers("/api/admin/notifications/**").hasRole("ADMIN")
+
+                        // 3) Autres API nécessitent les rôles listés
                         .requestMatchers("/api/medications/**", "/api/orders/**")
                         .hasAnyRole("ADMIN", "SERVICE_ACHAT", "CLIENT")
+
+                        // 4) Toute autre requête authentifiée
                         .anyRequest().authenticated()
                 )
-                // Form‐based login pointé sur votre endpoint custom
+                // Form‐based login sur /api/login
                 .formLogin(form -> form
-                        .loginProcessingUrl("/api/login")            // POST /api/login
-                        .successHandler((req,res,auth) -> res.setStatus(HttpStatus.OK.value()))
-                        .failureHandler((req,res,exc) -> res.sendError(HttpStatus.UNAUTHORIZED.value()))
+                        .loginProcessingUrl("/api/login")
+                        .successHandler((req, res, auth) -> res.setStatus(HttpStatus.OK.value()))
+                        .failureHandler((req, res, exc) -> res.sendError(HttpStatus.UNAUTHORIZED.value()))
                         .permitAll()
                 )
+                // Autoriser HTTP Basic (optionnel)
                 .httpBasic(Customizer.withDefaults())
+                // Déconnexion
                 .logout(logout -> logout
                         .logoutUrl("/api/logout")
                         .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.OK))

@@ -27,4 +27,6 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
 
     // Liste des mises à jour (stock & prix) du mois courant
     List<Medication> findAllByUpdatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<Medication> findByQuantityLessThanEqual(int threshold);
 }

@@ -1,3 +1,4 @@
+// src/main/java/com/soremed/backend/Config/WebConfig.java
 package com.soremed.backend.Config;
 
 import org.springframework.context.annotation.Configuration;
@@ -6,13 +7,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry
-                .addMapping("/api/**")        // toutes les routes sous /api
+                .addMapping("/api/**")
                 .allowedOrigins("http://localhost:5173")
-                .allowedMethods("GET","POST","PUT","DELETE","OPTIONS");
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
     }
 }
-
