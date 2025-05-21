@@ -6,7 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
+import com.soremed.backend.service.CustomUserDetails;
 /* Cette classe ira chercher l’utilisateur via ton repository et transformera ton entité User en un objet
  UserDetails que Spring Security utilisera pour l’authentification.
 */
@@ -26,10 +26,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        // Retourne un UserDetails construit à partir de l'entité utilisateur
-        return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
-                .password(user.getPassword())
-                .roles(user.getRole().name())  // ← String, ex. "ADMIN", "CLIENT" ou "SERVICE_ACHAT"
-                .build();
+        // on renvoie notre implémentation qui expose getId()
+        return new CustomUserDetails(user);
     }
 }
