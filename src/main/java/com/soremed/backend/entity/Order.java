@@ -26,7 +26,7 @@ public class Order {
 
     public Order() {
         this.orderDate = new Date();
-        this.status = "EN_COURS";
+        this.status = "PROCESSING";
         this.items = new ArrayList<>(); // ✅ Initialiser ici pour éviter NullPointerException
     }
 

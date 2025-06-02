@@ -56,12 +56,19 @@ public class MedicationService {
         return medicationRepo.findTop10ByOrderByIdDesc();
     }
 
-    public Medication updateQuantity(Long id, int quantity) {
+    public Medication updateQuantity(Long id, int amount) {
         Medication med = medicationRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Medication not found: " + id));
-        med.setQuantity(quantity);
+
+        int currentQty = med.getQuantity();
+        if (amount > currentQty) {
+            throw new IllegalArgumentException("Stock insuffisant pour l’id : " + id);
+        }
+
+        med.setQuantity(currentQty - amount);
         return medicationRepo.save(med);
     }
+
 
     // —————————————————————————————————————————————————————
     // 2️⃣ Méthode de recherche paginée RENVOYANT DES DTO

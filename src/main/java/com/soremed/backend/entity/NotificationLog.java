@@ -7,15 +7,32 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "notification_log")
 public class NotificationLog {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // ← on relie chaque notification à un utilisateur
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     private String type;
     private String message;
+
+    @Column(name = "timestamp")
     private LocalDateTime timestamp;
+
     private String severity;
-    @Column(name = "is_read")                // <— on renomme ici
+
+    @Column(name = "is_read")
     private boolean read;
+
+    public NotificationLog() {
+        this.timestamp = LocalDateTime.now();
+        this.read = false;
+    }
+
+    // ─── Getters & Setters ────────────────────────────────────────────────────
 
     public Long getId() {
         return id;
@@ -23,6 +40,14 @@ public class NotificationLog {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public String getType() {
