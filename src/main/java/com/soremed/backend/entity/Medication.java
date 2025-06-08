@@ -40,17 +40,29 @@ public class Medication {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    // ← NOUVEAUX CHAMPS PERSISTÉS
+    @Column(name = "previous_quantity")
+    private Integer previousQuantity;
+
+    @Column(name = "previous_price")
+    private Double  previousPrice;
+
+    // Champs transient toujours là pour la capture @PostLoad
     @Transient
     private Integer _previousQuantity;
-
     @Transient
-    private Double _previousPrice;
+    private Double  _previousPrice;
 
     @PostLoad
     public void cachePreviousValues() {
-        // À chaque chargement depuis la BDD, on mémorise l’état courant
         this._previousQuantity = this.quantity;
         this._previousPrice    = this.price;
+    }
+
+    @PreUpdate
+    public void storePreviousValues() {
+        this.previousQuantity = this._previousQuantity;
+        this.previousPrice    = this._previousPrice;
     }
 
     // Constructors
@@ -146,6 +158,22 @@ public class Medication {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getPreviousQuantity() {
+        return previousQuantity;
+    }
+
+    public void setPreviousQuantity(Integer previousQuantity) {
+        this.previousQuantity = previousQuantity;
+    }
+
+    public Double getPreviousPrice() {
+        return previousPrice;
+    }
+
+    public void setPreviousPrice(Double previousPrice) {
+        this.previousPrice = previousPrice;
     }
 
     public Integer get_previousQuantity() {

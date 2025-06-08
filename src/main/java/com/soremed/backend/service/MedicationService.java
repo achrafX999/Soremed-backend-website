@@ -102,23 +102,26 @@ public class MedicationService {
 
     @Transactional(readOnly = true)
     public MedStats computeStatsForCurrentMonth() {
-        LocalDateTime start = LocalDate.now()
-                .withDayOfMonth(1)
-                .atStartOfDay();
-        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end   = LocalDateTime.now();
 
         long newProducts = medicationRepo.countByCreatedAtBetween(start, end);
-
         List<Medication> updated = medicationRepo.findAllByUpdatedAtBetween(start, end);
 
         long invUpdates = updated.stream()
-                .filter(m -> m.getQuantity() != m.get_previousQuantity())
+                // on vérifie d’abord que previousQuantity n’est pas null
+                .filter(m -> m.getPreviousQuantity() != null
+                        && m.getQuantity() != m.getPreviousQuantity())
                 .count();
 
         long priceUpdates = updated.stream()
-                .filter(m -> m.getPrice() != m.get_previousPrice())
+                // getPrice() et getPreviousPrice() sont des Double → on peut utiliser equals()
+                .filter(m -> m.getPreviousPrice() != null
+                        && !m.getPrice().equals(m.getPreviousPrice()))
                 .count();
 
         return new MedStats(newProducts, invUpdates, priceUpdates);
     }
+
+
 }
