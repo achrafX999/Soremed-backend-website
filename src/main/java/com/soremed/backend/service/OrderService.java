@@ -88,6 +88,7 @@ public class OrderService {
      */
     @Transactional
     public Order createOrder(Long userId, List<OrderItem> items) {
+        // 1) Récupérer le User qui passe la commande
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 
@@ -106,7 +107,7 @@ public class OrderService {
 
         Order savedOrder = orderRepo.save(order);
 
-        // Génération de la notification "newOrder"
+        // 2) Génération de la notification "newOrder"
         NotificationSettings settings = settingsRepo.findById(1L)
                 .orElseThrow(() -> new IllegalStateException("NotificationSettings introuvable"));
         if (settings.isNewOrder()) {
@@ -116,8 +117,10 @@ public class OrderService {
             log.setTimestamp(LocalDateTime.now());
             log.setSeverity("medium");
             log.setRead(false);
-            // Pour la notification "newOrder", on ne rattache pas d’utilisateur particulier ;
-            // si vous souhaitez l’associer à un user, ajoutez : log.setUser(user);
+
+            // ← Ici on doit OBLIGATOIREMENT assigner le user de la notification
+            log.setUser(user);  // on lie la notification au client qui a passé la commande
+
             logRepo.save(log);
         }
 
