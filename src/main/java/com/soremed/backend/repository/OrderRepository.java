@@ -25,4 +25,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.user.id = :clientId AND o.status = 'Completed'")
     long countCompletedByClient(@Param("clientId") Long clientId);
+    @Query("SELECT COUNT(o) FROM Order o WHERE upper(o.status) <> 'COMPLETED'")
+    long countActiveOrders();
 }

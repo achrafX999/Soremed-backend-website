@@ -34,4 +34,14 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             @Param("clientId") Long clientId,
             Pageable limit
     );
+
+    @Query("""
+  SELECT new com.soremed.backend.dto.ClientTopProductDTO(
+    i.medicationName, SUM(i.quantity)
+  )
+  FROM OrderItem i
+  GROUP BY i.medicationName
+  ORDER BY SUM(i.quantity) DESC
+""")
+    List<ClientTopProductDTO> findGlobalTopProducts(Pageable limit);
 }
