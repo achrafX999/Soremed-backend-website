@@ -10,8 +10,13 @@ import com.soremed.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,28 +27,31 @@ import java.util.stream.Collectors;
 public class UserController {
     private final UserService userService;
     private final OrderService orderService;
-    public UserController(UserService userService, OrderService orderService) {
+    private final AuthenticationManager authenticationManager;
+    public UserController(UserService userService, OrderService orderService, AuthenticationManager authenticationManager) {
         this.userService = userService;
         this.orderService = orderService;
+        this.authenticationManager = authenticationManager;
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginDTO creds) {
-        Optional<User> opt = userService.authenticate(creds.getUsername(), creds.getPassword());
-        if (opt.isPresent()) {
-            User user = opt.get();
+    public ResponseEntity<?> login(@RequestBody LoginDTO creds,
+                                   HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken token =
+                new UsernamePasswordAuthenticationToken(creds.getUsername(), creds.getPassword());
+        try {
+            Authentication auth = authenticationManager.authenticate(token);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            request.getSession();        // create session
+            User user = userService.getUserByUsername(creds.getUsername()).orElseThrow();
             UserDTO dto = new UserDTO();
             dto.setId(user.getId());
             dto.setUsername(user.getUsername());
             dto.setRole(user.getRole().name());
-            return ResponseEntity
-                    .ok()      // 200 OK
-                    .body(dto); // UserDTO dans le corps
-        } else {
-            ErrorDTO err = new ErrorDTO("Nom d'utilisateur ou mot de passe incorrect");
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED) // 401
-                    .body(err);                      // ErrorDTO dans le corps
+            return ResponseEntity.ok(dto);
+        } catch (AuthenticationException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorDTO("Nom d'utilisateur ou mot de passe incorrect"));
         }
     }
 
@@ -163,7 +171,11 @@ public class UserController {
 
 
     @PostMapping("/users/register")
-    public ResponseEntity<UserDTO> register(@RequestBody RegistrationDTO dto) {
+    public ResponseEntity<?> register(@RequestBody RegistrationDTO dto) {
+        if (userService.usernameExists(dto.getUsername())) {
+            ErrorDTO err = new ErrorDTO("Username already taken");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(err);
+        }
         User u = new User();
         u.setUsername(dto.getUsername());
         u.setPassword(dto.getPassword());

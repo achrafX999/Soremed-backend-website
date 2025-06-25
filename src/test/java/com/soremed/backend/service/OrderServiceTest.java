@@ -25,6 +25,7 @@ class OrderServiceTest {
     @Mock OrderItemRepository itemRepo;
     @Mock NotificationSettingsRepository settingsRepo;
     @Mock NotificationLogRepository logRepo;
+    @Mock NotificationService notificationService;
 
     @InjectMocks
     OrderService service;
@@ -69,28 +70,23 @@ class OrderServiceTest {
         settings.setOrderStatusChange(true);
         when(settingsRepo.findById(1L)).thenReturn(Optional.of(settings));
 
-        // 4. Appel de la méthode avec passage du statut EN_COURS → COMPLETED
+        // 4. Stub du service de notification (void)
+        doNothing().when(notificationService)
+                .createNotificationForOrderStatus(any(Order.class), anyString(), anyString());
+
+        // 5. Appel de la méthode avec passage du statut EN_COURS → COMPLETED
         Order result = service.updateOrderStatus(99L, "COMPLETED");
 
-        // 5. Vérifications
+        // 6. Vérifications
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
 
         // a) On a décrémenté le stock : 20 - 2 = 18
         assertThat(med.getQuantity()).isEqualTo(18);
         verify(medRepo).save(med);
 
-        // b) On a bien enregistré une notification de type "orderStatusChange"
-        ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
-        verify(logRepo).save(captor.capture());
-
-        NotificationLog logged = captor.getValue();
-        assertThat(logged.getType()).isEqualTo("orderStatusChange");
-        assertThat(logged.getMessage()).contains("Commande #99")
-                .contains("EN_COURS")
-                .contains("COMPLETED");
-        assertThat(logged.isRead()).isFalse();
-        assertThat(logged.getTimestamp()).isInstanceOf(LocalDateTime.class);
-    }
+        // b) On a bien appelé le service de notification
+        verify(notificationService).createNotificationForOrderStatus(order, "EN_COURS", "COMPLETED");
+        }
 
     @Test
     void updateOrderStatus_throws_whenOrderNotFound() {

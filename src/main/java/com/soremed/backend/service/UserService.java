@@ -23,6 +23,11 @@ public class UserService {
         this.passwordEncoder= passwordEncoder;
     }
 
+    public boolean usernameExists(String username) {
+        return userRepo.existsByUsername(username);
+    }
+
+
     public Optional<User> authenticate(String username, String rawPassword) {
         return userRepo.findByUsername(username)
                 .filter(u -> passwordEncoder.matches(rawPassword, u.getPassword()));
